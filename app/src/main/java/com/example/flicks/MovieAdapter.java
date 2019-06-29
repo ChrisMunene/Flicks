@@ -1,6 +1,8 @@
 package com.example.flicks;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.res.Configuration;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +15,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.example.flicks.models.Config;
 import com.example.flicks.models.Movie;
+
+import org.parceler.Parcels;
 
 import java.util.ArrayList;
 
@@ -57,20 +61,36 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.ViewHolder> 
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         // Get the movie data at the specified position
         Movie movie = movies.get(position);
+
         // Populate view with movie data
         holder.tvTitle.setText(movie.getTitle());
         holder.tvOverview.setText(movie.getOverview());
 
-        //build poster image url
-        String imageUrl = config.getImageUrl(config.getPosterSize(), movie.getPosterPath());
+        //Determine the current orientation of the device
+        Boolean isPortrait = context.getResources().getConfiguration().orientation == Configuration.
+                ORIENTATION_PORTRAIT;
+
+        //build image url
+        String imageUrl = null;
+
+        if(isPortrait){
+            imageUrl = config.getImageUrl(config.getPosterSize(), movie.getPosterPath());
+
+        } else {
+            imageUrl = config.getImageUrl(config.getBackdropSize(), movie.getBackdropPath());
+        }
+
+        //Get the correct placeholder and ImageView for the current orientation
+        int placeholderId = isPortrait ? R.drawable.flicks_movie_placeholder : R.drawable.flicks_backdrop_placeholder;
+        ImageView imageView = isPortrait ? holder.ivPosterImage : holder.ivBackdropImage;
 
         //load image with placeholder and rounded corners
         Glide.with(context)
                 .load(imageUrl)
                 .bitmapTransform(new RoundedCornersTransformation(context, 25, 0))
-                .placeholder(R.drawable.flicks_movie_placeholder)
-                .error(R.drawable.flicks_movie_placeholder)
-                .into(holder.ivPosterImage);
+                .placeholder(placeholderId)
+                .error(placeholderId)
+                .into(imageView);
     }
 
     // Returns total number of items in the list
@@ -80,19 +100,40 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.ViewHolder> 
     }
 
     // Create Viewholder
-    public static class ViewHolder extends RecyclerView.ViewHolder {
+    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
 
         ImageView ivPosterImage;
         TextView tvTitle;
         TextView tvOverview;
+        ImageView ivBackdropImage;
 
+        @Override
+        public void onClick(View view) {
+            //Get item position
+            int position = getAdapterPosition();
+
+            if(position != RecyclerView.NO_POSITION){
+                // Get movie at current position
+                Movie movie = movies.get(position);
+                //Create intent for new activity
+                Intent intent = new Intent(context, MovieDetailsActivity.class);
+                //Serialize the movie using parceler
+                intent.putExtra(Movie.class.getSimpleName(), Parcels.wrap(movie));
+                intent.putExtra("img_url", config.getImageUrl(config.getBackdropSize(), movie.getBackdropPath()));
+                //Show the activity
+                context.startActivity(intent);
+            }
+        }
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             ivPosterImage = (ImageView) itemView.findViewById(R.id.ivPosterImage);
-            tvOverview = (TextView) itemView.findViewById(R.id.tVOverview);
+            tvOverview = (TextView) itemView.findViewById(R.id.tvOverview);
             tvTitle = (TextView) itemView.findViewById(R.id.tvTitle);
-
+            ivBackdropImage = (ImageView) itemView.findViewById(R.id.ivBackdropImage);
+            itemView.setOnClickListener(this);
         }
+
+
     }
 }
